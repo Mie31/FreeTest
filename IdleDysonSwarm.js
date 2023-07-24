@@ -20,8 +20,9 @@ var currency, money, sienceP;
 var bot, Fbot, factory;
 var workeraddmulti, researchaddmulti, accelerator, accel;
 var partick, ticktotal, deltaT;
+var assignmentslide, workerAssLbl, researcherAssLbl;
 var botExp, c2Exp;
-var rst;
+var rst, showrst=0;
 
 var achievement1, achievement2;
 var chapter1, chapter2;
@@ -34,15 +35,23 @@ const BotsConst = () => {
 BotsConst.workermulti = BigNumber.ZERO;
 BotsConst.researchmulti = BigNumber.ZERO;
 BotsConst.assignment = BigNumber.ZERO;
+
+const DeltaMulti = () => {
+    // Delta Value Constant of Everything MultiPrier
+}
+DeltaMulti.worker = BigNumber.ZERO;
+DeltaMulti.researcher = BigNumber.ZERO;
 // #endregion
 
 var initialiseSystem = () =>{
-    Fbot = BigNumber.ZERO
-    ticktotal = BigNumber.ZERO
-    accel = BigNumber.ZERO
+    Fbot = BigNumber.ZERO;
+    ticktotal = BigNumber.ZERO;
+    accel = BigNumber.ZERO;
     BotsConst.workermulti = 0.1;
     BotsConst.researchmulti = 1.0;
     BotsConst.assignment = 0.50;
+    DeltaMulti.worker = 0;
+    DeltaMulti.researcher = 0;
 }
 
 var init = () => {
@@ -82,7 +91,11 @@ var init = () => {
 
     // workeraddmulti
     {
-        let getDesc = (level) => `\\text{Add ${level} Multiprier Worker Generate Value}`;
+        let getDesc = (level) => `\\text{Add ${level} Multiprier for\\\\Worker Generate Value}`;
+        let inf = (before, after) => `\\text{$(t)=}`;
+        workeraddmulti = theory.createUpgrade(3, sienceP, new ExponentialCost(1e10, Math.log10(1.657e33)));
+        workeraddmulti.maxLevel = 3;
+        workeraddmulti.getDescription = (_) => Utils.getMath(getDesc(DeltaMulti.worker));
     }
 
     // debug
@@ -91,6 +104,7 @@ var init = () => {
         rst = theory.createUpgrade(99, currency, new FreeCost);
         rst.getDescription = (_) => Utils.getMath(getDesc(rst.level));
         rst.getInfo = (amount) => Utils.getMathTo(rst.level, rst.level + amount);
+        rst.isAvailable = showrst > 0
     }
 
     /////////////////////
@@ -137,6 +151,64 @@ var init = () => {
 
     //updateAvailability();
 }
+
+var getEquationOverlay = () => {
+    return ui.createGrid({
+        columnDefinitions: ["1*", "3*", "1*"],
+        columnSpacing: 0,
+        children: [
+            ui.createFrame({
+                row: 0,
+                column: 1,
+                horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
+                verticalOptions: LayoutOptions.START,
+                children: [
+                    assignmentslide = ui.createSlider({
+                        value: BotsConst.assignment,
+                        minimum: 0.00,
+                        maximum: 1.00,
+                        onValueChanged: () => {
+                            assignUpdate(assignmentslide.value);
+                            workerAssLbl.text = Utils.getMath((BotsConst.assignment * 100).toFixed(1) + "\\%");
+                            researcherAssLbl.text = Utils.getMath(((1 - BotsConst.assignment) * 100).toFixed(1) + "\\%");
+                            updateEquations(true, false, false);
+                        },
+                    }),
+                ],
+            }),
+            ui.createFrame({
+                padding: Thickness(9.5),
+                row: 0,
+                column: 0,
+                horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
+                verticalOptions: LayoutOptions.START,
+                children: [
+                    workerAssLbl = ui.createLatexLabel({
+                        text: Utils.getMath((BotsConst.assignment * 100).toFixed(1) + "\\%"),
+                        horizontalOptions: LayoutOptions.CENTER,
+                        verticalOptions: LayoutOptions.CENTER,
+                    }),
+                ]
+            }),
+            ui.createFrame({
+                padding: Thickness(9.5),
+                row: 0,
+                column: 2,
+                horizontalOptions: LayoutOptions.FILL_AND_EXPAND,
+                verticalOptions: LayoutOptions.START,
+                children: [
+                    researcherAssLbl = ui.createLatexLabel({
+                        text: Utils.getMath(((1 - BotsConst.assignment) * 100).toFixed(1) + "\\%"),
+                        horizontalOptions: LayoutOptions.CENTER,
+                        verticalOptions: LayoutOptions.CENTER,
+                    }),
+                ]
+            }),
+        ],
+    })
+}
+
+var assignUpdate = (worker) => BotsConst.assignment = worker;
 
 // bots assignment slider
 const createSubmenu = () => {
@@ -259,7 +331,7 @@ var tick = (elapsedTime, multiplier) => {
 
     partick = BigNumber.from((dt + getDeltaT(deltaT.level) + accel) * bonus);
     currency.value += partick * getBot(bot.level).pow(getbotExponent(botExp.level)) * 0.05;
-    money.value += partick * (getBot(bot.level).pow(getbotExponent(botExp.level)) * botmlt * botass);
+    money.value += partick * (getBot(bot.level).pow(getbotExponent(botExp.level)) * getWorkertotalmulti(botmlt, botass, workeraddmulti.level));
     sienceP.value += partick * (getBot(bot.level).pow(getbotExponent(botExp.level)) * resmlt * resass);
     Fbot += partick * getFactory(factory.level);
     ticktotal += partick;
@@ -267,33 +339,30 @@ var tick = (elapsedTime, multiplier) => {
         accel += 0.01
     }
 
-    theory.invalidateSecondaryEquation();
-    theory.invalidateTertiaryEquation();
+    updateEquations(false, true, true);
 }
 
 var getPrimaryEquation = () => {
     theory.primaryEquationHeight = 100;
     theory.primaryEquationScale = 1.125;
     let result = "\\\\ \\left. \\begin{array}{c} Each\\ Equipment \\\\ Producing \\end{array} \\right.";
-    result += "\\left\\{ \\begin{array}{cl} $(t) = " + (BotsConst.workermulti * BotsConst.assignment).toFixed(2) + "B_W \\\\ \\Sigma(t) = " + (BotsConst.researchmulti.toFixed(2) * (1 - BotsConst.assignment)).toFixed(2) + "B_R \\end{array} \\right.";
+    result += "\\left\\{ \\begin{array}{cl} $(t) = " + getWorkertotalmulti(BotsConst.workermulti, BotsConst.assignment, workeraddmulti.level) + "B_W \\\\ \\Sigma(t) = " + getWorkertotalmulti(BotsConst.researchmulti, (1 - BotsConst.assignment), DeltaMulti.researcher) + "B_R \\end{array} \\right.";
     return result;
 }
 
 var getSecondaryEquation = () => {
     theory.secondaryEquationHeight = 50;
     theory.secondaryEquationScale = 0.95;
-    let botmlt = BotsConst.workermulti * BotsConst.assignment;
-    let resmlt = BotsConst.researchmulti * (1 - BotsConst.assignment);
     let result = "\\begin{matrix}";
     result += theory.latexSymbol + "=\\max\\rho ^ {0.33}";
-    result += `\\\\ Works:${partick * 10 * getBot(bot.level) * botmlt} _$ /s`;
-    result += `\\\\ Research:${partick * 10 * getBot(bot.level) * resmlt} _\\Sigma /s`;
+    result += `\\\\ Works:${partick * 10 * getBot(bot.level) * getWorkertotalmulti(BotsConst.workermulti, BotsConst.assignment, DeltaMulti.worker)} _$ /s`;
+    result += `\\\\ Research:${partick * 10 * getBot(bot.level) * getWorkertotalmulti(BotsConst.researchmulti, (1 - BotsConst.assignment), DeltaMulti.researcher)} _\\Sigma /s`;
     result += "\\end{matrix}";
     return result;
 }
 
 var getTertiaryEquation = () => {
-    let result = `t_${theory.latexSymbol}=${ticktotal}\\ ^{_{<-}}\\ ${partick}/t`;
+    let result = `t_${theory.latexSymbol}=${ticktotal},\\ ${partick}/t`;
     return result;
 }
 
@@ -306,11 +375,16 @@ var getBot = (level) => BigNumber.from(level + Fbot);
 var getDeltaT = (level) => BigNumber.from(0.01 * level);
 var getFactory = (level) => BigNumber.from(0.01 * level);   //Bot Generate 0.01 / tick
 var getFactDesc = (level) => Number(0.1 * level * partick).toFixed(2);
+var getWorkertotalmulti = (base, assign, multi) => BigNumber.from(base * assign * (multi + 1))
 var getbotExponent = (level) => BigNumber.from(1 + 0.05 * level);
+var updateEquations = (primary, secondary, tertiary) => {
+    if (primary) theory.invalidatePrimaryEquation();
+    if (secondary) theory.invalidateSecondaryEquation();
+    if (tertiary) theory.invalidateTertiaryEquation();
+}
 var postPublish = () => {
     initialiseSystem();
-    theory.invalidatePrimaryEquation();
-    theory.invalidateTertiaryEquation();
+    updateEquations(true, true, true);
 }
 
 init();
