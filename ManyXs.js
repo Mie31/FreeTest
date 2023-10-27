@@ -51,7 +51,7 @@ var __init__ = () => {
         xn[i] = BigNumber.ZERO;
         xMaxN = i;
     };
-    tau = Number(0.01)
+    tau = Number(1)
 }
 
 var resetStage = () => {
