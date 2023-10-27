@@ -193,7 +193,11 @@ var getPublicationMultiplier = (tau) => tau.pow(0.164) / BigNumber.THREE;
 var getPublicationMultiplierFormula = (symbol) => "\\frac{{" + symbol + "}^{0.164}}{3}";
 var getTau = () => {
     tau += Number(currency.value / (Math.sin(xn[0]) + xn[0]))
-    return tau
+    if (tau == 'NaN') {
+        return 1;
+    } else {
+        return tau;
+    }
 };
 var get2DGraphValue = () => getTau();
 
