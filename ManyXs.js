@@ -91,7 +91,7 @@ var init = () => {
 
     /////////////////////
     // Permanent Upgrades
-    theory.createPublicationUpgrade(0, currency, 0);
+    theory.createPublicationUpgrade(0, currency, 1e50);
     // reset
     {
         TheoryReset = theory.createPermanentUpgrade(1, currency, new FreeCost);
@@ -102,7 +102,7 @@ var init = () => {
     // x0
     {
         x0 = theory.createPermanentUpgrade(2, currency, new FreeCost);
-        let getDesc = (level) => "x_0=" + Number(getX0(level)).toFixed(1);
+        let getDesc = (level) => "x_0=" + Number(getX0(level)).toFixed(3);
         x0.getDescription = (_) => Utils.getMath(getDesc(x0.level));
         x0.getInfo = (amount) => Utils.getMathTo(getDesc(x0.level), getDesc(x0.level + 1));
         x0.bought = (_) => updateEquations(false, true, false, false);
@@ -166,33 +166,32 @@ var getPrimaryEquation = () => {
 }
 
 var getSecondaryEquation = () => {
-    let result = "x_0=" + Number(getX0(x0.level)).toFixed(1) + "\\\\";
-    result += "\\Delta" + theory.latexSymbol + "={\\dot\\rho}\\div(\\sin(x_{\\max n})+x_{\\max n})";
+    let result = "x_0=" + Number(getX0(x0.level)).toFixed(3) + "\\\\";
+    result += "\\Delta" + theory.latexSymbol + "=\\frac{{\\dot\\rho}}{\\sin(x_{\\max n})+x_{\\max n}}";
     return result;
 }
 theory.secondaryEquationHeight = 50
 
 var getQuaternaryEntries = () => {
-    if (quaternaryEntries.length == 0)
-    {
+    if (quaternaryEntries.length == 0) {
         for (let i = 0; i < xMax; i++) {
             quaternaryEntries.push(new QuaternaryEntry(`x_{${i+1}}`, null));
-        };
+        }
     }
 
     for (let i = 0; i < xMax; i++) {
-        quaternaryEntries[i].value = xn[i];
-    };
+        quaternaryEntries[i].value = BigNumber.from(xn[i]);
+    }
     
     return quaternaryEntries;
 }
 
 var getTertiaryEquation = () => `t_${theory.latexSymbol}=${ttlT},\\ ${deltat}/t`;
 
-var getPublicationMultiplier = (tau) => tau.pow(0.164) / BigNumber.THREE;
-var getPublicationMultiplierFormula = (symbol) => "\\frac{{" + symbol + "}^{0.164}}{3}";
+var getPublicationMultiplier = (tau) => tau.pow(0.05) / BigNumber.THREE;
+var getPublicationMultiplierFormula = (symbol) => "\\frac{{" + symbol + "}^{0.05}}{3}";
 var getTau = () => {
-    tau += Number(currency.value / (Math.sin(xn[0]) + xn[0]))
+    tau += Number(currMax / (Math.sin(xn[0]) + xn[0]))
     if (tau >= 1) {
         return tau;
     } else {
@@ -200,7 +199,7 @@ var getTau = () => {
         return 1;
     }
 };
-var get2DGraphValue = () => getTau();
+var get2DGraphValue = () => Math.log10(Math.log1p(getTau()));
 
 var getN = (level) => formatNumber(level / 100, 2)
 var getDT = (level) => formatNumber(level / 10, 1)
@@ -211,8 +210,8 @@ let value = level / 10;
 let result = value.toPrecision(2);
 return result + " s";
 */
-var getX0 = (level) => BigNumber.from(0.1 * (level+1));
-var getDeltaT = (level) => BigNumber.from(0.01 * level);
+var getX0 = (level) => (0.001 * (level+1));
+var getDeltaT = (level) => (0.01 * level);
 var getXn = () => {
     xn[0] += getX0(x0.level) * getDeltaT(dtval.level);
     updateEquations(false, false, false, true);
